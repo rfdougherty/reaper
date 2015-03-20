@@ -34,6 +34,7 @@ setup(name='scitran.reaper',
       entry_points = {
           'console_scripts':
             ['dicom_reaper = scitran.reaper.dicom_reaper:DicomReaper.run_reaper',
+            'pfile_reaper = scitran.reaper.pfile_reaper:DicomReaper.run_reaper',
             ]},
       tests_require=tests_require,
       )
