@@ -140,7 +140,6 @@ class DicomReaper(reaper.Reaper):
         return acq_info
 
 
-
     class DicomFile(object):
 
         def __init__(self, filepath, anonymize=False):
