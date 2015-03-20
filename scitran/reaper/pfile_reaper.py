@@ -28,6 +28,18 @@ class PFileReaper(reaper.Reaper):
         self.discard_ids = options.discard.split()
         self.peripheral_data_reapers['gephysio'] = gephysio.reap
 
+    @classmethod
+    def run_reaper(cls):
+        positional_args = [
+            (('path',), dict(help='path to PFiles')),
+        ]
+        optional_args = [
+            (('-A', '--no-anonymize'), dict(dest='anonymize', action='store_false', help='do not anonymize patient name and birthdate')),
+            (('-d', '--discard'), dict(default='discard', help='space-separated list of Patient IDs to discard')),
+            (('-i', '--patid'), dict(default='*', help='glob for Patient IDs to reap ["*"]')),
+        ]
+        reaper.main(cls, positional_args, optional_args)
+
     def state_str(self, state):
         return state['mod_time'].strftime(reaper.DATE_FORMAT) + ', ' + reaper.hrsize(state['size'])
 
@@ -104,12 +116,4 @@ class PFileReaper(reaper.Reaper):
 
 
 if __name__ == '__main__':
-    positional_args = [
-        (('path',), dict(help='path to PFiles')),
-    ]
-    optional_args = [
-        (('-A', '--no-anonymize'), dict(dest='anonymize', action='store_false', help='do not anonymize patient name and birthdate')),
-        (('-d', '--discard'), dict(default='discard', help='space-separated list of Patient IDs to discard')),
-        (('-i', '--patid'), dict(default='*', help='glob for Patient IDs to reap ["*"]')),
-    ]
-    reaper.main(PFileReaper, positional_args, optional_args)
+
