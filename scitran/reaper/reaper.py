@@ -85,6 +85,8 @@ class Reaper(object):
     def __init__(self, id_, options):
         self.id_ = id_
         self.upload_urls = options.upload
+        if not self.upload_urls:
+            self.upload_urls = []
         self.peripheral_data = dict(options.peripheral)
         self.sleeptime = options.sleeptime
         self.graceperiod = datetime.timedelta(seconds=options.graceperiod)

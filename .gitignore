@@ -2,3 +2,6 @@
 .*sw[op]
 *.py[co]
 *.datetime
+build/
+dist/
+*.egg-info/

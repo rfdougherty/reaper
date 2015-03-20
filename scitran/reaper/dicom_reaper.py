@@ -46,6 +46,22 @@ class DicomReaper(reaper.Reaper):
         self.discard_ids = options.discard.split()
         self.peripheral_data_reapers['gephysio'] = gephysio.reap
 
+    @classmethod
+    def run_reaper(cls):
+        positional_args = [
+            (('host',), dict(help='remote hostname or IP')),
+            (('port',), dict(help='remote port')),
+            (('return_port',), dict(help='local return port')),
+            (('aet',), dict(help='local AE title')),
+            (('aec',), dict(help='remote AE title')),
+        ]
+        optional_args = [
+            (('-A', '--no-anonymize'), dict(dest='anonymize', action='store_false', help='do not anonymize patient name and birthdate')),
+            (('-d', '--discard'), dict(default='discard', help='space-separated list of Patient IDs to discard')),
+            (('-i', '--patid'), dict(default='*', help='glob for Patient IDs to reap ["*"]')),
+        ]
+        reaper.main(cls, positional_args, optional_args)
+
     def state_str(self, state):
         return ', '.join(['%s %s' % (v, k) for k, v in state.iteritems()])
 
@@ -124,6 +140,7 @@ class DicomReaper(reaper.Reaper):
         return acq_info
 
 
+
     class DicomFile(object):
 
         def __init__(self, filepath, anonymize=False):
@@ -148,17 +165,3 @@ class DicomReaper(reaper.Reaper):
                 dcm.save_as(filepath)
 
 
-if __name__ == '__main__':
-    positional_args = [
-        (('host',), dict(help='remote hostname or IP')),
-        (('port',), dict(help='remote port')),
-        (('return_port',), dict(help='local return port')),
-        (('aet',), dict(help='local AE title')),
-        (('aec',), dict(help='remote AE title')),
-    ]
-    optional_args = [
-        (('-A', '--no-anonymize'), dict(dest='anonymize', action='store_false', help='do not anonymize patient name and birthdate')),
-        (('-d', '--discard'), dict(default='discard', help='space-separated list of Patient IDs to discard')),
-        (('-i', '--patid'), dict(default='*', help='glob for Patient IDs to reap ["*"]')),
-    ]
-    reaper.main(DicomReaper, positional_args, optional_args)
