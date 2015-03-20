@@ -60,7 +60,13 @@ class DicomReaper(reaper.Reaper):
             (('-d', '--discard'), dict(default='discard', help='space-separated list of Patient IDs to discard')),
             (('-i', '--patid'), dict(default='*', help='glob for Patient IDs to reap ["*"]')),
         ]
-        reaper.main(cls, positional_args, optional_args)
+        pg = cls.arg_parser.add_argument_group(cls.__name__ + ' arguments')
+        for args, kwargs in positional_args:
+            pg.add_argument(*args, **kwargs)
+        og = cls.arg_parser.add_argument_group(cls.__name__ + ' options')
+        for args, kwargs in optional_args:
+            og.add_argument(*args, **kwargs)
+        DicomReaper.main()
 
     def state_str(self, state):
         return ', '.join(['%s %s' % (v, k) for k, v in state.iteritems()])

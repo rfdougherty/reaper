@@ -17,6 +17,12 @@ import tarfile
 import calendar
 import datetime
 import requests
+import sys
+import pytz
+import signal
+import tzlocal
+import argparse
+
 
 import tempdir as tempfile
 
@@ -81,6 +87,16 @@ class ReaperItem(dict):
 class Reaper(object):
 
     peripheral_data_reapers = {}
+
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('-p', '--peripheral', nargs=2, action='append', default=[], help='path to peripheral data')
+    arg_parser.add_argument('-s', '--sleeptime', type=int, default=60, help='time to sleep before checking for new data [60s]')
+    arg_parser.add_argument('-g', '--graceperiod', type=int, default=86400, help='time to keep vanished data alive [24h]')
+    arg_parser.add_argument('-t', '--tempdir', help='directory to use for temporary files')
+    arg_parser.add_argument('-u', '--upload', action='append', help='upload URL')
+    arg_parser.add_argument('-z', '--timezone', help='instrument timezone [system timezone]')
+    arg_parser.add_argument('-x', '--existing', action='store_true', help='retrieve all existing data')
+    arg_parser.add_argument('-o', '--oneshot', action='store_true', help='retrieve all existing data and exit')
 
     def __init__(self, id_, options):
         self.id_ = id_
@@ -213,50 +229,28 @@ class Reaper(object):
         return True
 
 
-def main(cls, positional_args, optional_args):
-    import sys
-    import pytz
-    import signal
-    import tzlocal
-    import argparse
+    @classmethod
+    def main(cls):
+        args = cls.arg_parser.parse_args()
 
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-p', '--peripheral', nargs=2, action='append', default=[], help='path to peripheral data')
-    arg_parser.add_argument('-s', '--sleeptime', type=int, default=60, help='time to sleep before checking for new data [60s]')
-    arg_parser.add_argument('-g', '--graceperiod', type=int, default=86400, help='time to keep vanished data alive [24h]')
-    arg_parser.add_argument('-t', '--tempdir', help='directory to use for temporary files')
-    arg_parser.add_argument('-u', '--upload', action='append', help='upload URL')
-    arg_parser.add_argument('-z', '--timezone', help='instrument timezone [system timezone]')
-    arg_parser.add_argument('-x', '--existing', action='store_true', help='retrieve all existing data')
-    arg_parser.add_argument('-o', '--oneshot', action='store_true', help='retrieve all existing data and exit')
+        if not args.upload:
+            log.warning('no upload URL provided; data will be purged after reaping')
 
-    pg = arg_parser.add_argument_group(cls.__name__ + ' arguments')
-    for args, kwargs in positional_args:
-        pg.add_argument(*args, **kwargs)
-    og = arg_parser.add_argument_group(cls.__name__ + ' options')
-    for args, kwargs in optional_args:
-        og.add_argument(*args, **kwargs)
+        if args.timezone is None:
+            args.timezone = tzlocal.get_localzone().zone
+        else:
+            try:
+                pytz.timezone(args.timezone)
+            except pytz.UnknownTimeZoneError:
+                log.error('invalid timezone')
+                sys.exit(1)
 
-    args = arg_parser.parse_args()
+        reaper = cls(args)
 
-    if not args.upload:
-        log.warning('no upload URL provided; data will be purged after reaping')
+        def term_handler(signum, stack):
+            reaper.halt()
+            log.warning('received SIGTERM - shutting down...')
+        signal.signal(signal.SIGTERM, term_handler)
 
-    if args.timezone is None:
-        args.timezone = tzlocal.get_localzone().zone
-    else:
-        try:
-            pytz.timezone(args.timezone)
-        except pytz.UnknownTimeZoneError:
-            log.error('invalid timezone')
-            sys.exit(1)
-
-    reaper = cls(args)
-
-    def term_handler(signum, stack):
-        reaper.halt()
-        log.warning('received SIGTERM - shutting down...')
-    signal.signal(signal.SIGTERM, term_handler)
-
-    reaper.run()
-    log.warning('process halted')
+        reaper.run()
+        log.warning('process halted')
