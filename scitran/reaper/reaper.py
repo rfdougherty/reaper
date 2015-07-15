@@ -19,6 +19,7 @@ import tzlocal
 import calendar
 import datetime
 import requests
+import shutil
 
 import tempdir as tempfile
 
@@ -287,7 +288,14 @@ class Reaper(object):
         pass
 
     def file_copy(self, filename, filepath, digest, uri):
-        pass
+        if not uri.startswith('file://'):
+            return False
+        destination = os.path.join(uri[6:].partition('/')[2], '%s.tgz' % digest)
+        try:
+            shutil.copyfile(filepath, destination)
+        except:
+            return False
+        return True
 
 
 def main(cls, positional_args, optional_args):
