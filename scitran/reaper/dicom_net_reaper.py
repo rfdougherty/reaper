@@ -9,7 +9,7 @@ adduser --disabled-password --gecos "Scitran Reaper" reaper
 
 import logging
 log = logging.getLogger('reaper.dicom')
-logging.getLogger('reaper.dicom.scu').setLevel(logging.INFO)
+#logging.getLogger('reaper.dicom.scu').setLevel(logging.INFO)
 
 import os
 import re
@@ -36,6 +36,7 @@ class DicomNetReaper(reaper.Reaper):
         'SeriesDate': '',
         'SeriesTime': '',
         'NumberOfSeriesRelatedInstances': '',
+        'PatientID': '',
     }
 
     def __init__(self, options):
@@ -50,7 +51,7 @@ class DicomNetReaper(reaper.Reaper):
         self.peripheral_data_reapers['gephysio'] = gephysio.reap
 
     def state_str(self, _id, state):
-        return '%s (%s)' % (_id, ','.join(['%s %s' % (v, k) for k, v in state.iteritems()]))
+        return '%s (%s)' % (_id, ', '.join(['%s %s' % (v, k) for k, v in state.iteritems()]))
 
     def instrument_query(self):
         i_state = {}
@@ -58,6 +59,7 @@ class DicomNetReaper(reaper.Reaper):
         for r in scu_resp:
             state = {
                     'images': int(r['NumberOfSeriesRelatedInstances']),
+                    'patient_id': r['PatientID'],
                     }
             i_state[r['SeriesInstanceUID']] = reaper.ReaperItem(state)
         return i_state or None # FIXME should return None only on communication error
@@ -66,20 +68,18 @@ class DicomNetReaper(reaper.Reaper):
         if item['state']['images'] == 0:
             log.info('ignoring     %s (zero images)' % _id)
             return None
+        if item['state']['patient_id'] and not self.is_desired_patient_id(item['state']['patient_id']):
+            return None
         reap_start = datetime.datetime.utcnow()
         log.info('reaping      %s' % self.state_str(_id, item['state']))
-        reap_cnt = self.scu.move(scu.SeriesQuery(StudyInstanceUID='', SeriesInstanceUID=_id), tempdir)
+        success, reap_cnt = self.scu.move(scu.SeriesQuery(StudyInstanceUID='', SeriesInstanceUID=_id), tempdir)
         filepaths = [os.path.join(tempdir, filename) for filename in os.listdir(tempdir)]
         log.info('reaped       %s (%d images) in %.1fs' % (_id, reap_cnt, (datetime.datetime.utcnow() - reap_start).total_seconds()))
-        if reap_cnt > 0:
+        if success and reap_cnt > 0:
             dcm = self.DicomFile(filepaths[0])
-            if dcm.patient_id.strip('/').lower() in self.blacklist:
-                log.info('discarding   %s' % _id)
+            if not self.is_desired_patient_id(dcm.patient_id):
                 return None
-            if not re.match(self.whitelist, dcm.patient_id):
-                log.info('ignoring     %s (non-matching patient ID)' % _id)
-                return None
-        if reap_cnt == item['state']['images']:
+        if success and reap_cnt == item['state']['images']:
             acq_info = self.split_into_acquisitions(_id, item, tempdir, filepaths)
             if self.peripheral_data:
                 for ai in acq_info:
@@ -88,6 +88,15 @@ class DicomNetReaper(reaper.Reaper):
             return True
         else:
             return False
+
+    def is_desired_patient_id(self, patient_id):
+        if not re.match(self.whitelist, patient_id):
+            log.info('ignoring     %s (non-matching patient ID)' % _id)
+            return False
+        if patient_id.strip('/').lower() in self.blacklist:
+            log.info('discarding   %s' % _id)
+            return False
+        return True
 
     def split_into_acquisitions(self, _id, item, path, filepaths):
         if self.anonymize:
