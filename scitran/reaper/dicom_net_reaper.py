@@ -37,6 +37,8 @@ class DicomNetReaper(reaper.Reaper):
         'SeriesTime': '',
         'NumberOfSeriesRelatedInstances': '',
         'PatientID': '',
+        'OperatorsName': '',
+        'AccessionNumber': '',
     }
 
     def __init__(self, options):
@@ -89,11 +91,11 @@ class DicomNetReaper(reaper.Reaper):
         else:
             return False
 
-    def is_desired_patient_id(self, patient_id):
-        if not re.match(self.whitelist, patient_id):
+    def is_desired_patient_id(self, _id):
+        if not re.match(self.whitelist, _id):
             log.info('ignoring     %s (non-matching patient ID)' % _id)
             return False
-        if patient_id.strip('/').lower() in self.blacklist:
+        if _id.strip('/').lower() in self.blacklist:
             log.info('discarding   %s' % _id)
             return False
         return True
