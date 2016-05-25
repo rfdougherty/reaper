@@ -4,8 +4,13 @@ import os
 import re
 import sys
 import time
+import array
+import signal
+import httplib
 import logging
+import argparse
 import datetime
+
 
 from . import util
 from . import tempdir as tempfile
@@ -16,7 +21,6 @@ SLEEPTIME = 60
 GRACEPERIOD = 86400
 OFFDUTY_SLEEPTIME = 300
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-
 
 METADATA = [
     # required
@@ -49,11 +53,6 @@ METADATA = [
 
 
 # monkey patching httplib to increase performance due to hard-coded block size
-# pylint: disable=wrong-import-order,wrong-import-position
-import httplib
-from array import array
-
-
 def fast_http_send(self, data):
     """Send `data' to the server."""
     if self.sock is None:
@@ -65,7 +64,7 @@ def fast_http_send(self, data):
     if self.debuglevel > 0:
         print "send:", repr(data)
     blocksize = 2**20  # was 8192 originally
-    if hasattr(data, 'read') and not isinstance(data, array):
+    if hasattr(data, 'read') and not isinstance(data, array.array):
         if self.debuglevel > 0:
             print "sendIng a read()able"
         datablock = data.read(blocksize)
@@ -318,9 +317,6 @@ class Reaper(object):
 
 def main(cls, arg_parser_update=None):
     # pylint: disable=missing-docstring
-    import signal
-    import argparse
-
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('persistence_file', help='path to persistence file')
     arg_parser.add_argument('-p', '--peripheral', nargs=2, action='append', help='path to peripheral data')
